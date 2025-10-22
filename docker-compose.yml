@@ -1,0 +1,7 @@
+services:
+  zpl-converter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "9999:9999"

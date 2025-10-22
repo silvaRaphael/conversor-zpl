@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor ZPL/TXT para PDF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #333;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        #status:empty {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Conversor ZPL/TXT para PDF</h1>
+    <p>Envie o arquivo ZIP</p>
+    
+    <form id="uploadForm" style="margin-bottom: 2rem;">
+        <div style="display: flex; gap: 2rem; align-items: center;">
+            <div>
+                <div>
+                    <input type="file" id="fileInput" accept=".zip" required />
+                </div>
+                <div>
+                    <label for="speedInput">Velocidade de Conversão:</label>
+                    <select name="speed" id="speedInput">
+                        <option value="200">Rápido</option>
+                        <option value="500">Médio</option>
+                        <option value="1000">Lento</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top: auto;">
+                <button type="submit">Converter</button>
+            </div>
+        </div>
+    </form>
+
+    <p id="loading" style="display: none;">Carregando...</p>
+    <p id="status"></p>
+    <a id="downloadLink" style="display: none;"></a>
+
+    <script>
+        const loadingButton = document.getElementById('loading');
+        const downloadLink = document.getElementById('downloadLink');
+
+        document.getElementById('fileInput').addEventListener('input', () => {
+            loadingButton.style.display = 'none';
+            downloadLink.style.display = 'none';
+            document.querySelector('#status').innerHTML = '';
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', async (event) => {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            const id = crypto.randomUUID();
+            const fileInput = document.getElementById('fileInput');
+            const speedInput = document.getElementById('speedInput');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('speed', speedInput.value);
+            formData.append('id', id);
+            localStorage.setItem('id', id);
+
+            loadingButton.style.display = '';
+            downloadLink.style.display = 'none';
+
+            try {
+                setTimeout(getStatus, 1000);
+                
+                const response = await fetch('/conversor-zpl/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+
+                    loadingButton.style.display = 'none';
+                    
+                    // Atualiza o link para download
+                    downloadLink.style.display = '';
+                    downloadLink.href = url;
+                    downloadLink.download = 'converted.zip';
+                    downloadLink.style.display = 'block';
+                    downloadLink.textContent = 'Clique aqui para baixar o ZIP convertido';
+                } else {
+                    console.error(await response.json())
+                    alert('Erro ao converter o arquivo. Tente novamente.');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Ocorreu um erro ao enviar o arquivo.');
+            } finally {
+                loadingButton.style.display = 'none';
+                const statusEl = document.querySelector('#status');
+                statusEl.innerHTML = '';
+            }
+        });
+
+        async function getStatus() {
+            try {
+                const id = localStorage.getItem('id');
+
+                if(!id) return;
+
+                const response = await fetch(`/conversor-zpl/status/${id}`);
+
+                if (response.ok) {
+                    const json = await response.json();
+
+                    const statusEl = document.querySelector('#status');
+
+                    statusEl.innerHTML = json.labels ? `Este arquivo possui ${json.labels} etiquetas, tempo <b>ESTIMADO</b> ${json.time} segundo(s) para conversão.` : '';
+                } else {
+                    console.error(await response.json())
+                    alert('Erro ao receber informações do arquivo. Tente novamente.');
+                }
+            } catch (error) {
+                console.error(await response.json())
+                alert('Ocorreu um erro ao receber as informações do arquivo.');
+            }
+        }
+    </script>
+
+</body>
+</html>
