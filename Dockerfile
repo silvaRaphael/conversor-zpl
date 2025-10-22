@@ -12,11 +12,8 @@ RUN npm install
 # Copy the rest of the application files
 COPY . .
 
-# Build the TypeScript files
-RUN npm run dev
-
 # Expose the port the app runs on
 EXPOSE 9999
 
 # Command to run the application
-CMD ["tsx", "src/index.ts"]
+CMD ["node", "src/index.js"]
